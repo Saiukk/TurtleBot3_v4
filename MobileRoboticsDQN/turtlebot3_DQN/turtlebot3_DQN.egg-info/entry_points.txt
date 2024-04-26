@@ -1,0 +1,2 @@
+[console_scripts]
+turtlebot3_DQN = turtlebot3_DQN.turtlebot3_DQN:main

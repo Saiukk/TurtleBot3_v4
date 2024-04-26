@@ -1,0 +1,8 @@
+numpy
+tensorflow==2.8.0
+gym==0.20.0
+gym_unity==0.28.0
+mlagents_envs==0.28.0
+wandb
+scipy
+transforms3d
