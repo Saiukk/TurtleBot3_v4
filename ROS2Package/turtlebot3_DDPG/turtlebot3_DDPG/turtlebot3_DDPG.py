@@ -56,7 +56,7 @@ class turtlebot3DDPG(Node):
         
         scan = self.turtlebot3.get_scan()
 
-        state = np.concatenate((scan, [dist, heading]))
+        state = np.concatenate((scan, [heading, dist]))
         state = self.agent.normalize_state(state)
         action = self.agent.select_action(state)
         print("Action -> " + str(action))
