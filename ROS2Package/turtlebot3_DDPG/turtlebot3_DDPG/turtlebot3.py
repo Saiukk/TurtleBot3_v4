@@ -27,7 +27,7 @@ class TurtleBot3():
         self.lidar_msg = LaserScan()
         self.odom_msg = Odometry()
         # set your desired goal: 
-        self.goal_x, self.goal_y = -3, 0.7 #-0.78 , -1.1 #-0.777, 1.176#z  # -0.777, 1.176 ##    # # this is for simulation change for real robot
+        self.goal_x, self.goal_y = -1.959, -0.289  #-0.78 , -1.1 #-0.777, 1.176#z  # -0.777, 1.176 ##    # # this is for simulation change for real robot
 
         # linear velocity is costant set your value
         self.linear_velocity = 0.2  # to comment
@@ -71,55 +71,12 @@ class TurtleBot3():
 
     def get_scan(self):
 
-        # scan_val = []
-        # # read lidar msg from self.lidar_msg and save in scan variable
-        # # print(self.lidar_msg)
-        # scan = self.lidar_msg.ranges
-        # # print('\n\nRANGE-->',scan)
-        # for i in range(len(scan)):  # cast limit values (0, Inf) to usable floats
-        #     if scan[i] == float('Inf'):
-        #         scan[i] = 3.5
-        #     elif math.isnan(scan[i]):
-        #         scan[i] = 0
-        #     scan[i] /= 3.5
-        #
-        # # get the rays like training if the network accept 3 (7) rays you have to keep the same number
-        # # I suggest to create a list of desire angles and after get the rays from the ranges list
-        # # save the result in scan_val list
-        # # desire_angle = [-90, -60, -30, 0, 30, 60, 90]
-        # # for i in desire_angle:
-        # #     scan_val.append(scan[i])
-        #
-        # count = -90
-        # mean = 0
-        # # print('RAGGIO -->', len(scan), scan[360])
-        # for i in range(-90, 91):
-        #
-        #     mean += scan[i]
-        #
-        #     if count == -90 or count == 0 or count == +90:
-        #         scan_val.append(scan[i])
-        #         mean = 0
-        #
-        #     elif abs(count) % 30 == 0:
-        #         mean /= 30
-        #         scan_val.append(mean)
-        #         mean = 0
-        #
-        #     count += 1
-        #
-        # # # print('Scan-->', scan_val)
-        # scan_val.reverse()
-        # print('Rev -->', scan_val)
-        # return scan_val
-
         ranges = []
         scan_val = []
 
         # read lidar msg from self.lidar_msg and save in scan variable
         len_ranges = len(self.lidar_msg.ranges)
         angle_min = self.lidar_msg.angle_min
-        angle_max = self.lidar_msg.angle_max
         angle_increment = self.lidar_msg.angle_increment
 
         for i in range(len_ranges):  # cast limit values (0, Inf) to usable floats
@@ -135,28 +92,36 @@ class TurtleBot3():
         for (i, range_record) in enumerate(self.lidar_msg.ranges):
             ranges.append({
                 "angle": angle_min + (i * angle_increment) if (i < len_ranges / 2) else angle_min + (
-                            i * angle_increment) - 6.28,
+                        i * angle_increment) - 6.28,
                 "value": range_record
             })
+        sorted_ranges = sorted(ranges, key=lambda x: x["angle"])
 
-        for i in range(7):
-            angle = ((i - 3) * 30) % 360
-            rng_min = angle - 15
-            rng_max = angle + 15
-            rng = ranges[rng_min: rng_max]
-            if (angle == 0):
-                rng = ranges[rng_min:] + ranges[:rng_max]
-            value = self.get_min(rng)
-            scan_val.append(value)
-            scan_val = scan_val[::-1]
+    # SORTING LIST
+        print(len(sorted_ranges))
+
+    # MEAN LIDAR
+        #180 90 270
+        mean = 0
+        count = 0
+        for i in range(90, 271):
+            mean += sorted_ranges[i]['value']
+
+            if i == 90 or i == 180 or i == 270:
+                scan_val.append(sorted_ranges[i]['value'])
+                mean = 0
+            elif abs(count) % 30 == 0:
+                mean /= 30
+                scan_val.append(mean)
+                mean = 0
+
+            count += 1
+
+        scan_val.reverse()
 
         return scan_val
 
-    def get_min(self, ranges):
-        min_value = ranges[0]["value"] if len(ranges) > 0 else 1.0
-        for range in ranges:
-            min_value = min(min_value, range["value"])
-        return min_value
+
 
     def get_goal_info(self, tb3_pos):
 
@@ -174,21 +139,18 @@ class TurtleBot3():
         distance = math.sqrt(((distance_x) ** 2) + ((distance_y) ** 2))
 
         # Calculate Heading
+        '''
         angle = math.atan2(distance_y, distance_x) # angle between target and position
         print("Angle -> ", np.rad2deg(angle))
         angle -= pi/2
+        angle = self.pi_T(angle)
         print("\nAngle -90 -> ", np.rad2deg(angle))
 
-        heading = angle - self.rot_[2]
+        heading = self.pi_T(angle - self.pi_T(self.rot_[2])
         print("\nHead -90 -> ", np.rad2deg(heading))
+'''
 
-        if heading > pi:
-            heading -= 2 * pi
-
-        elif heading < -pi:
-            heading += 2 * pi
-
-        print("\nHeading final -90 -> ", np.rad2deg(heading))
+        # print("\nHeading final -90 -> ", np.rad2deg(heading))
         #
         # print('Heading -> ', heading)
         # heading = heading - self.rot_[2]
@@ -200,25 +162,24 @@ class TurtleBot3():
         # # return heading in deg
         # return distance, np.rad2deg(heading) / 180
 
-        # yaw = self.pi_domain(np.rad2deg(self.rot_[2]))
-        # print("yaw: ", yaw)
-        # angleInDegrees = np.rad2deg(np.arctan2(self.goal_y - tb3_pos.z, self.goal_x - tb3_pos.x))
-        # angleInDegrees = self.pi_domain(angleInDegrees - 90)
-        # print("angle deg: ", angleInDegrees)
-        # heading = -self.pi_domain(angleInDegrees - yaw)
-        # print(f"heading: {heading}\n")
-        # print(f"GET GOAL DIST: {distance}, Heading: {heading}")
+        yaw = self.pi_domain(np.rad2deg(self.rot_[2]))
+        print("yaw: ", yaw)
+        angleInDegrees = np.rad2deg(np.arctan2(self.goal_y - tb3_pos.z, self.goal_x - tb3_pos.x))
+        angleInDegrees = self.pi_domain(angleInDegrees - 90)
+        print("angle deg: ", angleInDegrees)
+        heading = -self.pi_domain(angleInDegrees - yaw)
+        print(f"heading: {heading}\n")
+        print(f"GET GOAL DIST: {distance}, Heading: {heading}")
 
         # we round the distance dividing by 2.8 under the assumption that the max distance between
         # two points in the environment is approximately 3.3 meters, e.g. 3m
         # return heading in deg
-        return distance / self.distanceNormFact, 0.5 +(np.rad2deg(heading) / 360)  # (np.rad2deg(heading) / 360)
+        return distance / self.distanceNormFact, 0.5 + (heading / 360)  # (np.rad2deg(heading) / 360)
 
     def pi_domain(self, a):
         #print("A Pre: ", a)
         # modulo
-        a = a - int(a / 360) * 360 # if a > 360 restart from 0
-
+        a = a - int(a / 360) * 360  # if a > 360 restart from 0
 
         #print("A Post: ", a)
         if a > 180:
@@ -229,6 +190,16 @@ class TurtleBot3():
             print("A Pos: ", a)
         print("A out: ", a)
         return a
+
+    def pi_T(self, heading):
+        heading = heading - int(heading / 2 * pi) * 2 * pi
+        if heading > pi:
+            heading -= 2 * pi
+
+        elif heading < -pi:
+            heading += 2 * pi
+
+        return heading
 
     def move(self, action, pub):
         # stop robot
