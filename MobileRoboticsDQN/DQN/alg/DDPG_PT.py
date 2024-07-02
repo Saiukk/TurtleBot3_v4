@@ -1,3 +1,5 @@
+import time
+
 import torch
 import torch as T
 import torch.nn as nn
@@ -9,7 +11,7 @@ import random
 
 
 class Network_cont(nn.Module):
-    def __init__(self, input_shape, output_size, output_range=None, hiddenNodes=64):
+    def __init__(self, input_shape, output_size, output_range = None, hiddenNodes=64):
 
 
 
@@ -35,7 +37,6 @@ class Network_cont(nn.Module):
 
         # with torch.no_grad():
         output = nn.functional.sigmoid(self.output_layer(x))
-
         if self.output_range is not None:
             output = (output * T.from_numpy((self.output_range[1] - self.output_range[0])) + T.from_numpy(self.output_range[0]))# in range [0,1]
 
@@ -81,13 +82,13 @@ class DDPG_PT:
 
 
         self.input_shape = self.env.observation_space.shape[0]
-        self.action_shape = env.action_space.n
-        print("OBS ->>", self.input_shape, "\n ACT-->", self.action_shape)
-        self.action_space = env.action_space.n
+        self.action_shape = env.action_space.shape[0]
+        print("OBS ->>", self.env.observation_space, "\n ACT-->", self.env.action_space)
+        self.action_space = env.action_space.shape[0]
         print("OBS ->>", self.input_shape, "\n ACT-->", self.action_space)
         # output_rang = [env.action_space.low, env.action_space.high]
 
-        self.actor = Network_cont(self.input_shape, self.action_space).to(self.device)
+        self.actor = Network_cont(self.input_shape, self.action_space, [env.action_space.low, env.action_space.high]).to(self.device)
         self.critic = Network_critic(self.input_shape, self.action_shape).to(self.device)
         self.critic_target = Network_critic(self.input_shape, self.action_shape).to(self.device)
 
@@ -139,14 +140,13 @@ class DDPG_PT:
             ep_reward_mean.append(ep_reward)
             reward_list.append(ep_reward)
             if self.verbose > 0: print(
-                f"Episode: {episode:7.0f}, reward: {ep_reward:8.2f}, mean_last_100: {np.mean(ep_reward_mean):8.2f}, exploration: {self.exploration_rate:0.2f}")
+                f"Episode: {episode:7.0f}, reward: {ep_reward:8.2f}, mean_last_100: {np.mean(ep_reward_mean):8.2f}, exploration: {self.exploration_rate:0.2f}, goal: {info['goal_reached']}, collision: {info['collision']}")
             if self.verbose > 1: np.savetxt(f"data/reward_DDPG_PT_{self.run_id}.txt", reward_list)
 
     def get_action(self, state):
 
         state = state.reshape(1, -1)
         action = self.actor(T.tensor(state))
-        # print(action)
         action = action.detach().numpy()[0]
 
         action += np.random.normal(loc=0, scale=self.exploration_rate)

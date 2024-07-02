@@ -8,6 +8,7 @@ for device in physical_devices:
     tf.config.experimental.set_memory_growth(device, True)
 import numpy as np
 import torch as T
+from stable_baselines3 import PPO
 import time
 
 
@@ -56,11 +57,13 @@ def main( env, policy_network, iterations=100 ):
 
 if __name__ == "__main__":
 
-	policy_network = T.jit.load("/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/MODEL_750.pt")
-	policy_network.eval()
+	# policy_network = T.jit.load("/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/MODEL_DQN_500.pt")
+	# policy_network.eval()
+	policy_network = PPO.load("/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/ppo_5000_baseline3")
+
 
 	try:
-		env = RoboticNavigation(env_type= "testing", editor_build=False )
+		env = RoboticNavigation(env_type= "testing", editor_build=False,random_seed=123 )
 		success = main( env, policy_network )
 		print('\n======================================')
 		print(f'\nSuccess: {success[0]}/{success[2]}\nCrash: {success[1]}/{success[2]}\n')

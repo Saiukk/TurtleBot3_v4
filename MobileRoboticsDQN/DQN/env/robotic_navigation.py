@@ -64,7 +64,7 @@ class RoboticNavigation( gym.Env ):
 
 		# Convert the Unity Environment in a OpenAI Gym Environment, setting some flag 
 		# according with the current setup (only one branch in output and no vision observation)
-		self.env = UnityToGymWrapper( unity_env, flatten_branched=True )
+		self.env = UnityToGymWrapper( unity_env, flatten_branched=False)
 
 		# Override the action space of the wrapper
 		self.action_space = self.env.action_space
@@ -145,8 +145,6 @@ class RoboticNavigation( gym.Env ):
 		"""
 
 		# Call the step function of the OpenAI Gym class
-		# action = action[0]
-		# action = action[0]
 		state, reward, _, _ = self.env.step( action )
 
 		# Initialize the empty dictionary
@@ -180,6 +178,17 @@ class RoboticNavigation( gym.Env ):
 			new_distance = state[-1]
 			reward = (self.target_distance - new_distance) * reward_multiplier - step_penalty
 			self.target_distance = new_distance
+
+			# METHOD 1
+			# if robot is too close to walls, substract a quantity
+			# for i in range(7):
+			# 	if state[i] < 0.2:
+			# 		reward -= 0.3
+
+			# METHOD 2
+			# if the robot collided, less reward
+			# if info['collision']:
+			# 	reward -= 1
 
 		# Here it's possible to override the reward given by the Unity Engine
 		# default returns the standard reward from the environment

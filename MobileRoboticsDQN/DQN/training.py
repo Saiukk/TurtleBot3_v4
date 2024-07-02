@@ -1,14 +1,16 @@
 from stable_baselines3.common.logger import configure
-
+from stable_baselines3 import PPO
+from alg.PPO_PT import PPO_PT
 from env.robotic_navigation import RoboticNavigation
 
-# from alg.DDPG_PT import DDPG_PT
+from alg.DDPG_PT import DDPG_PT
+from alg.REINFORCE_PT import REINFORCE_PT
 from alg.DQN_PT import DQN
 import time, sys, argparse
 import tensorflow as tf
 import config
 import os
-from stable_baselines3 import PPO
+
 # physical_devices = tf.config.list_physical_devices('GPU')
 # for device in physical_devices:
 #     tf.config.experimental.set_memory_growth(device, True)
@@ -18,9 +20,10 @@ def train(env, args):
 
 	# Execution of the training loop
 	try: 
-		algo = DQN(env, verbose=2)
-		algo.loop(1000)
-	
+		algo = PPO(policy="MlpPolicy", env= env)
+		algo.learn(total_timesteps=1500000)
+
+		algo.save("/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/ppo_5000_baseline3")
 	# Listener for errors and print of the eventual error message
 	except Exception as e: 
 		print(e)

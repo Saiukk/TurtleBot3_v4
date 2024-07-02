@@ -35,6 +35,13 @@ class DQN:
         # Prende enviroment da Gym, Verbose mostra l'avanzamento
         self.env = env
         self.verbose = verbose
+
+        # self.seed = np.random.randint(0,1000)
+        self.seed = 634
+        T.manual_seed(self.seed)
+        np.random.seed(self.seed)
+
+
         self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
         self.input_shape = self.env.observation_space.shape[0]  # Input possibili
         self.action_space = env.action_space.n  # Output possibili
@@ -48,7 +55,7 @@ class DQN:
         self.memory_size = 10000  # 2000 Dimensione Memoria
         self.batch_size = 128  # 32 # Numeri campioni propagati nella rete
         self.exploration_rate = 1.0  # Tasso iniziale di Exploration
-        self.exploration_decay = 0.995  # Fattore di decadimento
+        self.exploration_decay = 0.999  # Fattore di decadimento
         self.tau = 0.005
 
         self.run_id = np.random.randint(0,
@@ -101,10 +108,10 @@ class DQN:
             # Salvo i miei dati
             if self.verbose > 0: print(
                 f"Episode: {episode:7.0f}, reward: {ep_reward:8.2f}, mean_last_100: {np.mean(ep_reward_mean):8.2f}, exploration: {self.exploration_rate:0.2f}, Goal: {info['goal_reached']}")
-            if self.verbose > 1 and episode % 250 == 0 :
+            if self.verbose > 1 and episode % 500 == 0:
                 model_script = T.jit.script(self.actor)
-                model_script.save("/home/riccardo/colcon_ws/src/turtlebot3_DDPG/model_trained/MODEL_%d.pt" % (episode))
-                # T.save(self.actor, "/home/riccardo/colcon_ws/src/turtlebot3_DDPG/model_trained/MODEL_%d.pt" % (episode))
+                model_script.save("/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/MODEL_DQN_%d.pt" % (episode))
+                # T.save(self.actor, "/home/riccardo/colcon_ws/src/turtlebot3_Sim/model_trained/MODEL_%d.pt" % (episode))
 
     def _update_target(self, weights, target_weights, tau):
         for (a, b) in zip(target_weights, weights):

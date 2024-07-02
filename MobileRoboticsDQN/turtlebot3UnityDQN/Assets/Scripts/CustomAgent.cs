@@ -3,13 +3,13 @@ using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
 
-
 // Declaration of the main class for the agent, that inherited from the Agent class of Unity-ML Agents
 public class CustomAgent : Agent {
 
 	// Robot physics parameters (angular and linear velocity constant)
 	public float angularStep;
 	public float linearStep;
+
 
 	// Variables for the initial position of the target
 	public bool randomizeAgentRotation = true;
@@ -95,19 +95,30 @@ public class CustomAgent : Agent {
 	public override void OnActionReceived(ActionBuffers actionBuffers)	{
 
 		// Read the action buffer, in this set-up, discrete
-		var actionBuffer = actionBuffers.DiscreteActions;
+		var actionBuffer = actionBuffers.ContinuousActions;
+		Debug.Log("Linear" + " " + actionBuffer[0] );
+
+		if(actionBuffer[0] > 1){
+			actionBuffer[0] = 1;
+		} else if( actionBuffer[0] < -1){
+			actionBuffer[0] =-1;
+		}
+
+
 		// Basic setting for the action 0 (CoC)
 		float angularVelocity = 0f;
 		float linearVelocity = linearStep;
+
 		// Listener for action 1, turn right
 		// change angular and lienar velocity
-		if ( actionBuffer[0] == 1 ) {
+		
+		if ( actionBuffer[0] < -0.7 ) {
 			angularVelocity = angularStep;
 			linearVelocity = 0f;
 		}
 		// Listener for action 2, turn left	
 		// change angular and lienar velocity
-		if ( actionBuffer[0] == 2 ) {
+		if ( actionBuffer[0] > 0.7 ) {
 			angularVelocity = -angularStep;
 			linearVelocity = 0f;
 		}
@@ -117,7 +128,6 @@ public class CustomAgent : Agent {
 		transform.Rotate(Vector3.up * angularVelocity);
 		transform.Translate(Vector3.forward * linearVelocity);	
 	}
-
 
 	// Listener for the observations collections.
 	// The observations for the LiDAR sensor are inherited from the 
