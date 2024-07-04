@@ -17,6 +17,6 @@ sudo apt install -y \
   ros-foxy-turtlebot3-msgs \
   ros-foxy-turtlebot3
 
-echo 'export ROS_DOMAIN_ID=30 #TURTLEBOT3' >> ~/.bashrc
+echo 'export ROS_DOMAIN_ID=0 #TURTLEBOT3' >> ~/.bashrc
 
 echo "Now run 'source \$HOME/.bashrc'
