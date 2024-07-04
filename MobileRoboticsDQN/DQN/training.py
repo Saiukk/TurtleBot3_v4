@@ -22,8 +22,7 @@ def train(env, args):
 	try: 
 		algo = PPO_PT(env, discrete=True)
 		algo.loop(10000) #Change to add or remove episodes
-
-		algo.save("/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/ppo_5000_baseline3")
+		
 	# Listener for errors and print of the eventual error message
 	except Exception as e: 
 		print(e)
