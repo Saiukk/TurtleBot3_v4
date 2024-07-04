@@ -20,8 +20,8 @@ def train(env, args):
 
 	# Execution of the training loop
 	try: 
-		algo = PPO(policy="MlpPolicy", env= env)
-		algo.learn(total_timesteps=1500000)
+		algo = PPO_PT(env, discrete=True)
+		algo.loop(10000) #Change to add or remove episodes
 
 		algo.save("/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/ppo_5000_baseline3")
 	# Listener for errors and print of the eventual error message
