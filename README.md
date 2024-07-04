@@ -52,3 +52,8 @@ ros2 run turtlebot3_Sim turtlebot3_Sim
 
 ## Real
 Create connection with your turtlebot with ssh and repeat same commands mentioned in usage but change "ROS_DOMAIN_ID" from 0 to 30 in bashrc
+
+---
+## Author
+* **Enrico Angelico**
+* **Riccardo Portaro**
