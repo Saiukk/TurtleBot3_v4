@@ -111,13 +111,12 @@ class DDPG_PT:
 
     def loop(self, num_episodes=1000):
         reward_list = []
+        success_list = []
+        collision_list = []
         ep_reward_mean = deque(maxlen=100)
         replay_buffer = deque(maxlen=self.memory_size)
 
         for episode in range(num_episodes):
-
-            if episode % 10 == 0:
-                seed = np.random.randint(0, 255)
 
             state = self.env.reset()
             ep_reward = 0
@@ -137,11 +136,20 @@ class DDPG_PT:
                 self._update_target(self.critic.parameters(), self.critic_target.parameters(), tau=self.tau)
 
             self.exploration_rate = self.exploration_rate * self.exploration_decay if self.exploration_rate > 0.05 else 0.05
+            # Save data
             ep_reward_mean.append(ep_reward)
+            success_list.append(int(info['goal_reached']))
+            collision_list.append(int(info['collision']))
             reward_list.append(ep_reward)
-            if self.verbose > 0: print(
-                f"Episode: {episode:7.0f}, reward: {ep_reward:8.2f}, mean_last_100: {np.mean(ep_reward_mean):8.2f}, exploration: {self.exploration_rate:0.2f}, goal: {info['goal_reached']}, collision: {info['collision']}")
-            if self.verbose > 1: np.savetxt(f"data/reward_DDPG_PT_{self.run_id}.txt", reward_list)
+            if self.verbose > 0:
+                print(
+                    f"EpisodeR: {episode:7.0f}, reward: {ep_reward:8.2f}, mean_last_100: {np.mean(ep_reward_mean):8.2f}, sigma: {self.exploration_rate:0.2f}, goal: {info['goal_reached']}, collision: {info['collision']}")
+                np.savetxt(f"MobileRoboticsDQN/DQN/model_testing/DDPG_PT{self.seed}_reward.txt", reward_list)
+                np.savetxt(f"MobileRoboticsDQN/DQN/model_testing/DDPG_PT{self.seed}_collision.txt", collision_list)
+                np.savetxt(f"MobileRoboticsDQN/DQN/model_testing/DDPG_PT{self.seed}_success.txt", success_list)
+            if self.verbose > 1 and episode % 1000 == 0:
+                model_script = T.jit.script(self.actor)
+                model_script.save("MobileRoboticsDQN/DQN/model_testing/DDPG_MODEL_%d.pt" % (episode))
 
     def get_action(self, state):
 
@@ -160,10 +168,6 @@ class DDPG_PT:
     def update_networks(self, replay_buffer):
         samples = np.array(random.sample(replay_buffer, min(len(replay_buffer), self.batch_size)), dtype=object)
 
-
-
-        # with tf.GradientTape() as tape_a, tf.GradientTape() as tape_c:
-
         objective_function_a = self.actor_objective_function(samples)  # Compute loss with custom loss function
         self.actor_optimizer.zero_grad()
         objective_function_a.backward()
@@ -174,15 +178,6 @@ class DDPG_PT:
         objective_function_c.backward()
         self.critic_optimizer.step()
 
-        # grads_c = tape_c.gradient(objective_function_c,
-        #                           self.critic.trainable_variables)  # Compute gradients critic for network
-        # grads_a = tape_a.gradient(objective_function_a,
-        #                           self.actor.trainable_variables)  # Compute gradients actor for network
-        #
-        # self.critic_optimizer.apply_gradients(
-        #     zip(grads_c, self.critic.trainable_variables))  # Apply gradients to update network weights
-        # self.actor_optimizer.apply_gradients(
-        #     zip(grads_a, self.actor.trainable_variables))  # Apply gradients to update network weights
 
     def actor_objective_function(self, replay_buffer):
         # Extract values from buffer

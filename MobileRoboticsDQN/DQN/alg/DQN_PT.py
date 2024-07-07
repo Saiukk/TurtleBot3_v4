@@ -64,6 +64,8 @@ class DQN:
 
     def loop(self, num_episodes=1000):
         reward_list = []
+        success_list = []
+        collision_list = []
         ep_reward_mean = deque(maxlen=100)  # usato per i dati
         replay_buffer = deque(maxlen=self.memory_size)  # lista per salvare [state, action, reward, new_state, done]
 
@@ -103,15 +105,20 @@ class DQN:
             self.exploration_rate = self.exploration_rate * self.exploration_decay if self.exploration_rate > 0.05 else 0.05  # Aggiorno exploraion rate
             # Linear self.exploration_rate = self.exploration_rate - self.exploration_decay if self.exploration_rate
             # > 0.005 else 0.005  # Aggiorno exploraion rate
-            ep_reward_mean.append(ep_reward)  # Ridondante
-            reward_list.append(ep_reward)  # salvo i miei punteggi
-            # Salvo i miei dati
-            if self.verbose > 0: print(
-                f"Episode: {episode:7.0f}, reward: {ep_reward:8.2f}, mean_last_100: {np.mean(ep_reward_mean):8.2f}, exploration: {self.exploration_rate:0.2f}, Goal: {info['goal_reached']}")
-            if self.verbose > 1 and episode % 500 == 0:
+
+            # Save data
+            ep_reward_mean.append(ep_reward)
+            success_list.append(int(info['goal_reached']))
+            collision_list.append(int(info['collision']))
+            reward_list.append(ep_reward)
+            if self.verbose > 0:
+                print(f"EpisodeR: {episode:7.0f}, reward: {ep_reward:8.2f}, mean_last_100: {np.mean(ep_reward_mean):8.2f}, sigma: {self.exploration_rate:0.2f}, goal: {info['goal_reached']}, collision: {info['collision']}")
+                np.savetxt(f"MobileRoboticsDQN/DQN/model_testing/DQN_PT{self.seed}_reward.txt", reward_list)
+                np.savetxt(f"MobileRoboticsDQN/DQN/model_testing/DQN_PT{self.seed}_collision.txt", collision_list)
+                np.savetxt(f"MobileRoboticsDQN/DQN/model_testing/DQN_PT{self.seed}_success.txt", success_list)
+            if self.verbose > 1 and episode % 1000 == 0:
                 model_script = T.jit.script(self.actor)
-                model_script.save("/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/MODEL_DQN_%d.pt" % (episode))
-                # T.save(self.actor, "/home/riccardo/colcon_ws/src/turtlebot3_Sim/model_trained/MODEL_%d.pt" % (episode))
+                model_script.save("MobileRoboticsDQN/DQN/model_testing/DQN_MODEL_%d.pt" % (episode))
 
     def _update_target(self, weights, target_weights, tau):
         for (a, b) in zip(target_weights, weights):

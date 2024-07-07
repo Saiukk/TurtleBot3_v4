@@ -6,13 +6,6 @@ import numpy as np
 import gym
 import random
 
-'''
-COSE DA SISTEMARE
-s 
-*device
-*Neural network Continuos
-'''
-
 
 ##
 # DISCRETE
@@ -137,9 +130,9 @@ class REINFORCE_PT:
                 f"EpisodeR: {episode:7.0f}, reward: {ep_reward:8.2f}, mean_last_100: {np.mean(ep_reward_mean):8.2f}, sigma: {self.sigma:0.2f}")
             if self.verbose > 0 and self.discrete:
                 print(f"EpisodeR: {episode:7.0f}, reward: {ep_reward:8.2f}, mean_last_100: {np.mean(ep_reward_mean):8.2f}, sigma: {self.sigma:0.2f}, goal: {info['goal_reached']}, collision: {info['collision']}")
-                np.savetxt(f"/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/REINFORCE_PT{self.seed}_reward.txt", reward_list)
-                np.savetxt(f"/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/REINFORCE_PT{self.seed}_collision.txt", collision_list)
-                np.savetxt(f"/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/REINFORCE_PT{self.seed}_success.txt", goal_list)
+                np.savetxt(f"MobileRoboticsDQN/DQN/model_testing/REINFORCE_PT{self.seed}_reward.txt", reward_list)
+                np.savetxt(f"MobileRoboticsDQN/DQN/model_testing/REINFORCE_PT{self.seed}_collision.txt", collision_list)
+                np.savetxt(f"MobileRoboticsDQN/DQN/model_testing/REINFORCE_PT{self.seed}_success.txt", goal_list)
             if self.verbose > 1 and episode % 1000 == 0:
                 model_script = T.jit.script(self.actor)
                 model_script.save("/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/Reinforce_MODEL_%d.pt" % (episode))
@@ -153,12 +146,6 @@ class REINFORCE_PT:
         objective_function.backward()
         self.optimizer.step()
 
-        # with tf.GradientTape() as tape:
-        #     objective_function = self.actor_objective_function(memory_buffer)  # Compute loss with custom loss function
-        #     grads = tape.gradient(objective_function,
-        #                           self.actor.trainable_variables)  # Compute gradients actor for network
-        #     self.optimizer.apply_gradients(
-        #         zip(grads, self.actor.trainable_variables))  # Apply gradients to update network weights
 
     def discount_reward(self, rewards):
         sum_reward = 0
@@ -193,19 +180,13 @@ class REINFORCE_PT:
 
         baseline = np.mean(reward)
         probability = self.actor(state)
-        # action_idx = [[counter, val] for counter, val in enumerate(action)]
 
         action_idx = []
         for val in action:
             action_idx.append([val])
 
-        # action_idx = [val for val in enumerate(action)]
         action_idx = T.tensor(action_idx)
-        # probability = tf.expand_dims(tf.gather_nd(probability, action_idx), axis=-1)
-        # probability = T.tensor(probability)
         probability = torch.gather(probability, dim=1, index=action_idx)
-        # probability = T.unsqueeze(probability, dim=-1)
-        # partial_objective = tf.math.log(probability) * (reward - baseline)
 
         partial_objective = T.log(probability) * T.tensor(reward - baseline)
         return -T.mean(partial_objective)

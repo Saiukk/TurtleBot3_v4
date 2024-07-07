@@ -15,14 +15,16 @@ import time
 
 FLAG = True
 
+''' The method get_action is for DQN, if you use other algorithms you have to change it'''
 def get_action( state, policy ):
+
 
 	# if state[-2] < 0.01: state[-2] = 1
 
 	action = state.reshape((1,-1))
 	softmax_out = policy(T.tensor(action)).cpu().data.numpy()
 	selected_action = np.argmax( softmax_out )
-	print(selected_action)
+
 	return selected_action
 
 
@@ -57,10 +59,9 @@ def main( env, policy_network, iterations=100 ):
 
 if __name__ == "__main__":
 
-	# policy_network = T.jit.load("/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/MODEL_DQN_500.pt")
-	# policy_network.eval()
-	policy_network = PPO.load("/home/riccardo/Desktop/TurtleBot/MobileRoboticsDQN/DQN/model_testing/ppo_5000_baseline3")
-
+	# Choose the model to test
+	policy_network = T.jit.load("model_testing/MODEL_10000.pt")
+	policy_network.eval()
 
 	try:
 		env = RoboticNavigation(env_type= "testing", editor_build=False,random_seed=123 )

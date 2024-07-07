@@ -2,7 +2,6 @@ from stable_baselines3.common.logger import configure
 from stable_baselines3 import PPO
 from alg.PPO_PT import PPO_PT
 from env.robotic_navigation import RoboticNavigation
-
 from alg.DDPG_PT import DDPG_PT
 from alg.REINFORCE_PT import REINFORCE_PT
 from alg.DQN_PT import DQN
@@ -20,7 +19,7 @@ def train(env, args):
 
 	# Execution of the training loop
 	try: 
-		algo = PPO_PT(env, discrete=True)
+		algo = DQN(env, verbose=2)
 		algo.loop(10000) #Change to add or remove episodes
 		
 	# Listener for errors and print of the eventual error message
