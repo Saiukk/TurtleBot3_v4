@@ -14,7 +14,7 @@ class Agent:
 
 
         # self.model = tf.keras.models.load_model(package_dir + "/model_trained/DDQN_id940_ep2666.h5")
-        self.model = T.jit.load('/home/enange/colcon_ws/src/turtlebot3_Real/model_trained/MODEL_DQN_1000.pt') # Da sistemare
+        self.model = T.jit.load( package_dir + '/model_trained/MODEL_DQN_1000.pt')
         self.model.eval()
 
         if verbose:

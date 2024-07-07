@@ -1,7 +1,7 @@
 import os
 from time import sleep; os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-from turtlebot3_DDPG.agent import Agent
-from turtlebot3_DDPG.turtlebot3 import TurtleBot3
+from turtlebot3_Real.agent import Agent
+from turtlebot3_Real.turtlebot3 import TurtleBot3
 from geometry_msgs.msg import Twist, Point
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
