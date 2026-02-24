@@ -7,6 +7,9 @@
 ![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
 
 # TurtleBot4 Project
+In this repository, you can find the implementation of both simulated and real-world code to train and deploy an RL model to be used on the TurtleBot4 for maze escape, given its target destination.
+<img width="634" height="636" alt="image" src="https://github.com/user-attachments/assets/d0c37873-6edc-4693-901d-6be1606bb541" />
+
 
 ## Requirements & Installation
 Ubuntu 20.04 version is required or VM (probably lagging)
