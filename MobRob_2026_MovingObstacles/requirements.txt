@@ -1,0 +1,7 @@
+numpy
+gym_unity==0.28.0
+mlagents_envs==0.28.0
+stable-baselines3==1.8.0
+wandb
+scipy
+transforms3d
