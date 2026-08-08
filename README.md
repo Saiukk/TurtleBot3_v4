@@ -9,8 +9,7 @@
 # TurtleBot4 Project
 In this repository, you can find the implementation of both simulated and real-world code to train and deploy an RL model to be used on the TurtleBot4 for maze escape, given its target destination.
 
-<img width="300" height="300" alt="image" src="https://github.com/user-attachments/assets/d0c37873-6edc-4693-901d-6be1606bb541" />
-
+<img width="640" height="644" alt="PPO_navigation" src="https://github.com/user-attachments/assets/e8d01d65-2bac-455c-b23a-18bd1824b4de" />
 
 ## Requirements & Installation
 Ubuntu 20.04 version is required or VM (probably lagging)
