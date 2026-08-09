@@ -171,7 +171,7 @@ class DDQN():
 		logger = create_logger(self.run_name, args)
 		if args.wandb_log: init_wandb(self.run_name, args)
 
-		logger_dict = { "reward": [], "success": [], "step": [], "cost": []}
+		logger_dict = { "reward": [], "success": [], "step": [], "cost": [], "collision": []}
 		
 		
 
@@ -186,6 +186,7 @@ class DDQN():
 			logger_dict['success'].append(0)
 			logger_dict['step'].append(0)
 			logger_dict['cost'].append(0)
+			logger_dict['collision'].append(0)
             
 			# Main loop of the current episode
 			while True:
@@ -199,6 +200,7 @@ class DDQN():
 				logger_dict['reward'][-1] += reward	
 				logger_dict['step'][-1] += 1	
 				logger_dict['cost'][-1] += info['cost']
+				logger_dict['collision'][-1] += info['collision']
 				logger_dict['success'][-1] = 1 if info['goal_reached'] else 0
 
 				# Call the update rule of the algorithm
@@ -215,19 +217,22 @@ class DDQN():
 			cost_last_100 = logger_dict['cost'][-last_n:]
 			step_last_100 = logger_dict['step'][-last_n:]
 			success_last_100 = logger_dict['success'][-last_n:]
+			collision_last_100 = logger_dict['collision'][-last_n:]
 
 			record = {
 					'Episode': episode,
 					'Step': int(np.mean(step_last_100)),
 					'Avg_Cost': int(np.mean(cost_last_100)*100),
 					'Avg_Success': int(np.mean(success_last_100)*100),
-					'Avg_Reward': np.mean(reward_last_100),	
+					'Avg_Reward': np.mean(reward_last_100),
+					'Avg_Collision': int(np.mean(collision_last_100)*100),
 				}
 			logger.write(record)
 
 			print( f"(DDQN) Ep: {episode:5}", end=" " )
 			print( f"reward: {logger_dict['reward'][-1]:5.2f} (last_100: {np.mean(reward_last_100):5.2f})", end=" " )
 			print( f"cost_last_100: {int(np.mean(cost_last_100))}", end=" " )
+			print( f"collision_last_100: {int(np.mean(collision_last_100)*100)}%", end=" " )
 			print( f"step_last_100 {int(np.mean(step_last_100)):3d}", end=" " )
 			if 'eps_greedy' in self.__dict__.keys(): print( f"eps: {self.eps_greedy:3.2f}", end=" " )
 			if 'sigma' in self.__dict__.keys(): print( f"sigma: {self.sigma:3.2f}", end=" " )
@@ -242,7 +247,9 @@ class DDQN():
 			current_success = int(np.mean(success_last_100)*100)
 			if current_success >= 79 and current_success > self.best_success:
 					self.best_success = current_success
-					self.actor.save(f"models/DDQN_id{self.seed}_ep{episode}_success{current_success}.h5")
+					# Overwrite in place: one file per run, always the current best,
+					# instead of a new file for every improved success threshold.
+					self.actor.save(f"models/{self.run_name}.h5")
 
 		
 	

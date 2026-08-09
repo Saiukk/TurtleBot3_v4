@@ -1,12 +1,14 @@
 from env.robotic_navigation import RoboticNavigation
 from alg.DDQN import DDQN
 from alg.PPO_SB3 import PPO_SB3
+from alg.SAC_SB3 import SAC_SB3
 import time, sys, argparse
 import config
 
 ALGORITHMS = {
 	"DDQN": DDQN,
 	"PPO_SB3": PPO_SB3,
+	"SAC_SB3": SAC_SB3,
 }
 
 def train(env, args):

@@ -2303,6 +2303,7 @@ MonoBehaviour:
   MaxStep: 0
   angularStep: 30
   linearStep: 0.05
+  useContinuousActions: 1
   randomizeAgentRotation: 0
   randomizeAgentPosition: 0
   randomizeTarget: 1

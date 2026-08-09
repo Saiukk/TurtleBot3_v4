@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.AI;
 using Unity.MLAgents;
+using Unity.MLAgents.Policies;
 using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
 
@@ -11,6 +12,24 @@ public class CustomAgent : Agent {
 	// Robot physics parameters (angular and linear velocity constant)
 	public float angularStep;
 	public float linearStep;
+
+	// Switches the action space from Discrete(3) (stop-and-rotate, used by DDQN/PPO)
+	// to Continuous(2) (linear + angular velocity, blendable into arcs -- needed by
+	// SAC/PPO for continuous control). Must be set before OnEnable() runs the
+	// Agent's LazyInitialize(), which builds the actuator from BrainParameters -
+	// hence overriding it here in Awake() rather than in the Agent's Initialize().
+	public bool useContinuousActions = false;
+
+	// Must override (not shadow) the base Agent.Awake(): that base implementation is
+	// what registers the ML-Agents communicator so the Editor can talk to Python at
+	// all -- a plain (non-override) Awake() here would hide it entirely and silently
+	// break every algorithm, not just SAC.
+	protected override void Awake() {
+		base.Awake();
+		if (useContinuousActions) {
+			GetComponent<BehaviorParameters>().BrainParameters.ActionSpec = ActionSpec.MakeContinuous(2);
+		}
+	}
 
 	// Variables for the initial position of the target
 	public bool randomizeAgentRotation = true;
@@ -106,28 +125,45 @@ public class CustomAgent : Agent {
 	// (if heuristic mode), inside the Python script, the action is passed with the step funciton
 	public override void OnActionReceived(ActionBuffers actionBuffers)	{
 
-		// Read the action buffer, in this set-up, discrete
-		var actionBuffer = actionBuffers.DiscreteActions;
-		// Basic setting for the action 0 (CoC)
-		float angularVelocity = 0f;
-		float linearVelocity = linearStep;
-		// Listener for action 1, turn right
-		// change angular and lienar velocity
-		if ( actionBuffer[0] == 1 ) {
-			angularVelocity = angularStep;
-			linearVelocity = 0f;
+		float angularVelocity;
+		float linearVelocity;
+
+		if ( useContinuousActions ) {
+			// gym_unity always exposes a continuous action space as Box(-1, 1), regardless
+			// of the physical meaning assigned here, so both components arrive in [-1, 1].
+			// Component 0 is clamped to [0, 1] (forward only, no reverse): the LiDAR only
+			// covers a 180-degree forward-facing arc, so driving backward would be blind
+			// to anything behind the robot. Turning (component 1) still uses the full
+			// range so the agent can blend a turn with forward motion into an arc --
+			// the discrete action set (below) can only ever do one or the other.
+			var continuousAction = actionBuffers.ContinuousActions;
+			linearVelocity = Mathf.Clamp01(continuousAction[0]) * linearStep;
+			angularVelocity = Mathf.Clamp(continuousAction[1], -1f, 1f) * angularStep;
+		} else {
+			// Read the action buffer, in this set-up, discrete
+			var actionBuffer = actionBuffers.DiscreteActions;
+			// Basic setting for the action 0 (CoC)
+			angularVelocity = 0f;
+			linearVelocity = linearStep;
+			// Listener for action 1, turn right
+			// change angular and lienar velocity
+			if ( actionBuffer[0] == 1 ) {
+				angularVelocity = angularStep;
+				linearVelocity = 0f;
+			}
+			// Listener for action 2, turn left
+			// change angular and lienar velocity
+			if ( actionBuffer[0] == 2 ) {
+				angularVelocity = -angularStep;
+				linearVelocity = 0f;
+			}
 		}
-		// Listener for action 2, turn left	
-		// change angular and lienar velocity
-		if ( actionBuffer[0] == 2 ) {
-			angularVelocity = -angularStep;
-			linearVelocity = 0f;
-		}
+
 		// Apply the movement (rotation and translation) according with angular and linear velocity
 		//transform.Rotate(Vector3.up * Time.deltaTime * angularVelocity);
 		//transform.Translate(Vector3.forward * Time.deltaTime * linearVelocity);
 		transform.Rotate(Vector3.up * angularVelocity);
-		transform.Translate(Vector3.forward * linearVelocity);	
+		transform.Translate(Vector3.forward * linearVelocity);
 
 		// Steps for agent and moving obstacles
 		foreach (MovingObstacle mo in movingObstacles) mo.Step();
@@ -180,15 +216,31 @@ public class CustomAgent : Agent {
 
 	// Debug function, useful to control the agent with the keyboard in heurisitc mode
 	// (must be setted in the editor)
-	public override void Heuristic(in ActionBuffers actionsOut) { 
+	public override void Heuristic(in ActionBuffers actionsOut) {
 
-		// Set the basic action and wait or a keyboard key
-		int action = 0;
-		if (Input.GetKey(KeyCode.A)) action = 1;
-		if (Input.GetKey(KeyCode.D)) action = 2;
-		// Add the action to the actionsOut object
-		var actions = actionsOut.DiscreteActions;
-		actions[0] = action;
+		if ( useContinuousActions ) {
+			// W drives forward, A/D turn -- no reverse (see OnActionReceived: the LiDAR
+			// can't see behind the robot). Turning zeroes the forward speed to mirror
+			// the discrete heuristic below (turn-in-place rather than an arc), since
+			// this is just a manual debug aid, not something training relies on.
+			bool turning = Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.D);
+			float forward = Input.GetKey(KeyCode.W) ? 1f : 0f;
+			float turn = 0f;
+			if (Input.GetKey(KeyCode.A)) turn = 1f;
+			if (Input.GetKey(KeyCode.D)) turn = -1f;
+
+			var continuousActionsOut = actionsOut.ContinuousActions;
+			continuousActionsOut[0] = turning ? 0f : forward;
+			continuousActionsOut[1] = turn;
+		} else {
+			// Set the basic action and wait or a keyboard key
+			int action = 0;
+			if (Input.GetKey(KeyCode.A)) action = 1;
+			if (Input.GetKey(KeyCode.D)) action = 2;
+			// Add the action to the actionsOut object
+			var actions = actionsOut.DiscreteActions;
+			actions[0] = action;
+		}
 	}
 
 	

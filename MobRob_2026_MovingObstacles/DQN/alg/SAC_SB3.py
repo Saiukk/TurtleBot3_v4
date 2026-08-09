@@ -2,62 +2,32 @@ from .log_utils import create_logger, init_wandb
 import numpy as np
 import time, os
 import warnings; warnings.filterwarnings("ignore")
-import gym
 
-from stable_baselines3 import PPO
+from stable_baselines3 import SAC
 from stable_baselines3.common.callbacks import BaseCallback
-
-
-class _SymmetricActionWrapper(gym.ActionWrapper):
-    """
-    PPO's on-policy Gaussian continuous-action policy (SB3's ActorCriticPolicy) has
-    no squashing option like SAC's -- it draws a raw, unbounded sample and hard-clips
-    it to the declared action_space. RoboticNavigation declares the real, asymmetric
-    bounds (linear speed in [0, 1], no reverse -- see its __init__), which is exactly
-    what SAC needs (its squashed-Gaussian policy maps smoothly onto whatever bounds
-    are declared). But for PPO, a policy initialized with mean=0 then sits right on
-    that [0, 1] boundary: ~50% of raw forward-speed samples are negative and collapse
-    onto the single point 0 ("stopped") after clipping, from the very first rollout --
-    a strong don't-move bias baked in by the clip mechanic alone, independent of
-    anything learned. So PPO trains against a symmetric [-1, 1] view instead (keeping
-    its zero-mean init centered, not on a boundary), and this wrapper rescales into
-    the environment's real range underneath.
-    """
-
-    def __init__(self, env):
-        super().__init__(env)
-        self.action_space = gym.spaces.Box(
-            low=-1.0, high=1.0, shape=env.action_space.shape, dtype=np.float32
-        )
-
-    def action(self, act):
-        low, high = self.env.action_space.low, self.env.action_space.high
-        return low + (0.5 * (np.asarray(act) + 1.0) * (high - low))
-
-    def reverse_action(self, act):
-        low, high = self.env.action_space.low, self.env.action_space.high
-        return 2.0 * ((np.asarray(act) - low) / (high - low)) - 1.0
 
 
 class EpisodeLoggingCallback(BaseCallback):
     """
-    Mirrors DDQN.loop's per-episode bookkeeping (reward/step/cost/success averaged
-    over the last `last_n` episodes) so PPO runs produce metrics comparable to DDQN's.
+    Mirrors PPO_SB3.EpisodeLoggingCallback's per-episode bookkeeping (reward/step/
+    cost/collision/success averaged over the last `last_n` episodes), so SAC runs
+    produce metrics comparable to DDQN's and PPO_SB3's. Only the diagnostics read
+    out of SB3's internal logger differ, since SAC logs different training values.
     """
 
-    # How often (in completed episodes) to print PPO's internal training diagnostics.
+    # How often (in completed episodes) to print SAC's internal training diagnostics.
     METRICS_INTERVAL = 25
 
-    # PPO.train() logs these via self.model.logger.record(...) once per policy update
-    # (every N_STEPS env steps); read the latest values straight out of that logger.
+    # SAC.train() logs these via self.model.logger.record(...) once per gradient step
+    # (every `train_freq` env steps -- every step, by default); read the latest values
+    # straight out of that logger. "train/ent_coef_loss" is only recorded when ent_coef
+    # is learned automatically (SB3's default, ent_coef="auto", used here).
     METRIC_KEYS = [
-        "train/explained_variance",
-        "train/approx_kl",
-        "train/clip_fraction",
-        "train/entropy_loss",
-        "train/value_loss",
-        "train/policy_gradient_loss",
         "train/n_updates",
+        "train/ent_coef",
+        "train/actor_loss",
+        "train/critic_loss",
+        "train/ent_coef_loss",
     ]
 
     def __init__(self, metrics_logger, wandb_log, last_n, model_dir, n_episode, run_name):
@@ -121,7 +91,7 @@ class EpisodeLoggingCallback(BaseCallback):
                 import wandb
                 wandb.log(record)
 
-            print(f"(PPO_SB3) Ep: {episode:5}", end=" ")
+            print(f"(SAC_SB3) Ep: {episode:5}", end=" ")
             print(f"reward: {self.ep_reward:5.2f} (last_{last_n}: {np.mean(reward_last_n):5.2f})", end=" ")
             print(f"cost_last_{last_n}: {int(np.mean(cost_last_n))}", end=" ")
             print(f"collision_last_{last_n}: {int(np.mean(collision_last_n) * 100)}%", end=" ")
@@ -129,7 +99,7 @@ class EpisodeLoggingCallback(BaseCallback):
             print(f"success_last_{last_n} {int(np.mean(success_last_n) * 100):4d}%")
 
             if episode % self.METRICS_INTERVAL == 0:
-                self._print_ppo_diagnostics()
+                self._print_sac_diagnostics()
 
             # save model only the first time a new best avg_success (>= 79%) is reached,
             # not on every episode spent above the threshold
@@ -153,67 +123,60 @@ class EpisodeLoggingCallback(BaseCallback):
 
         return True
 
-    def _print_ppo_diagnostics(self):
+    def _print_sac_diagnostics(self):
         # self.logger here is SB3's internal Logger (see the note in __init__), the
-        # same one PPO.train() writes to -- values are only present after the first
-        # policy update (every N_STEPS env steps), so skip silently until then.
+        # same one SAC.train() writes to -- values are only present after the first
+        # gradient step (train_freq env steps in), so skip silently until then.
         values = self.logger.name_to_value
-        if "train/explained_variance" not in values:
+        if "train/actor_loss" not in values:
             return
 
-        print(
-            f"        [PPO] explained_variance: {values['train/explained_variance']:6.3f}  "
-            f"approx_kl: {values['train/approx_kl']:.4f}  "
-            f"clip_fraction: {values['train/clip_fraction']:.3f}  "
-            f"entropy_loss: {values['train/entropy_loss']:.4f}  "
-            f"value_loss: {values['train/value_loss']:.4f}  "
-            f"policy_grad_loss: {values['train/policy_gradient_loss']:.4f}  "
-            f"n_updates: {int(values['train/n_updates'])}"
+        line = (
+            f"        [SAC] n_updates: {int(values['train/n_updates'])}  "
+            f"ent_coef: {values['train/ent_coef']:.4f}  "
+            f"actor_loss: {values['train/actor_loss']:.4f}  "
+            f"critic_loss: {values['train/critic_loss']:.4f}"
         )
+        if "train/ent_coef_loss" in values:
+            line += f"  ent_coef_loss: {values['train/ent_coef_loss']:.4f}"
+        print(line)
 
 
-class PPO_SB3():
+class SAC_SB3():
 
     """
-    Thin wrapper around stable-baselines3's PPO, kept API-compatible with
-    DDQN(env, args) / .loop(args) so training.py can select either interchangeably.
-    Uses the default MlpPolicy, which auto-detects the env's action space and works
-    unmodified against either the Discrete(3) actions DDQN also uses, or the
-    Continuous(2) actions SAC_SB3 requires (set via CustomAgent.useContinuousActions
-    in the Unity scene) -- unlike SAC, which only supports continuous actions.
+    Thin wrapper around stable-baselines3's SAC, kept API-compatible with
+    DDQN(env, args) / .loop(args) so training.py can select it interchangeably
+    with DDQN/PPO_SB3.
+
+    Requires a continuous action space (gym.spaces.Box): set
+    CustomAgent.useContinuousActions=true on the agent in the Unity scene before
+    training with this algorithm. SAC asserts on the Discrete(3) action space
+    DDQN/PPO_SB3 normally use, since it's a deterministic-entropy continuous-control
+    algorithm with no discrete-action variant.
     """
 
     # Matches RoboticNavigation's internal step-limit timeout (env/robotic_navigation.py)
     STEP_LIMIT = 300
 
-    # PPO-specific hyperparameters not exposed via config.py, hardcoded here:
-    N_STEPS = 2048
-    GAE_LAMBDA = 0.95
-    CLIP_RANGE = 0.2
-    VF_COEF = 0.5
-    ENT_COEF = 0.01
+    # Env steps of pure random-action exploration collected before the first gradient
+    LEARNING_STARTS = 2000
 
     def __init__(self, env, args):
-
-        if isinstance(env.action_space, gym.spaces.Box):
-            env = _SymmetricActionWrapper(env)
 
         self.env = env
         self.run_name = f"{args.alg}__{args.tag if args.tag != '' else ''}__{args.seed}__{int(time.time())}"
 
-        self.model = PPO(
+        self.model = SAC(
             "MlpPolicy",
             env,
             gamma=args.gamma,
             batch_size=args.batch_size,
-            n_epochs=args.n_epochs,
             learning_rate=args.lr,
+            tau=args.tau,
+            gradient_steps=args.n_epochs,
+            learning_starts=self.LEARNING_STARTS,
             seed=args.seed,
-            n_steps=self.N_STEPS,
-            gae_lambda=self.GAE_LAMBDA,
-            clip_range=self.CLIP_RANGE,
-            vf_coef=self.VF_COEF,
-            ent_coef=self.ENT_COEF,
             verbose=0,
         )
 

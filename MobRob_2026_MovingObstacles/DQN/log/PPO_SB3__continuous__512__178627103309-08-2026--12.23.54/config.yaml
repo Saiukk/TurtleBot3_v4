@@ -17,11 +17,12 @@ metrics:
 - Avg_Success
 - Avg_Reward
 - Avg_Cost
+- Avg_Collision
 n_episode: 4000
 n_epochs: 10
 n_layers: 2
-seed: 940
-tag: ''
+seed: 512
+tag: continuous
 tau: 0.005
 wandb_code: true
 wandb_entity: luca0

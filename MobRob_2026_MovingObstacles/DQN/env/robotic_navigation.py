@@ -70,8 +70,26 @@ class RoboticNavigation(gym.Env):
         # according with the current setup (only one branch in output and no vision observation)
         self.env = UnityToGymWrapper(unity_env, flatten_branched=True)
 
-        # Override the action space of the wrapper
-        self.action_space = self.env.action_space
+        # Override the action space of the wrapper. gym_unity always reports continuous
+        # actions as a symmetric Box(-1, 1) regardless of what the values actually mean
+        # -- but the linear component only ever drives forward (no reverse, the LiDAR
+        # can't see behind the robot; see CustomAgent.cs), so leaving it symmetric would
+        # let SAC waste half its raw policy output range, and half of every random
+        # warm-up action during learning_starts, on values that just collapse to
+        # "stopped" in Unity. SB3 rescales the policy's canonical [-1, 1] output to
+        # whatever bounds are declared here (BasePolicy.unscale_action) and samples
+        # warm-up actions uniformly from this space, so declaring the real range here
+        # fixes both. No change needed in step() below: UnityToGymWrapper.step()
+        # forwards actions to Unity unmodified, with no validation against its own
+        # (still-symmetric) action_space.
+        if isinstance(self.env.action_space, gym.spaces.Box):
+            self.action_space = gym.spaces.Box(
+                low=np.array([0, -1], dtype=np.float32),
+                high=np.array([1, 1], dtype=np.float32),
+                dtype=np.float32
+            )
+        else:
+            self.action_space = self.env.action_space
 
         # Override the state_size, the orginal version provide a 2*scan_number size for the LiDAR,
         # for each direction 2 value, one with the flaot value and one with the flag [0, 1]. In this

@@ -1,6 +1,6 @@
 !!python/object:argparse.Namespace
 activation: relu
-alg: DDQN
+alg: PPO_SB3
 batch_size: 128
 cuda: '-1'
 eps: 1.0
@@ -9,7 +9,7 @@ eps_min: 0.05
 gamma: 0.99
 last_n: 100
 layer_size: 32
-lr: 0.001
+lr: 0.0003
 memory_size: 5000
 metrics:
 - Episode
@@ -17,11 +17,12 @@ metrics:
 - Avg_Success
 - Avg_Reward
 - Avg_Cost
+- Avg_Collision
 n_episode: 4000
-n_epochs: 40
+n_epochs: 10
 n_layers: 2
-seed: 940
-tag: ''
+seed: 64
+tag: continuous
 tau: 0.005
 wandb_code: true
 wandb_entity: luca0

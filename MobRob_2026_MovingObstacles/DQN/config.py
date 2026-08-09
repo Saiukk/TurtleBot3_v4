@@ -21,7 +21,7 @@ def parse_args():
 
     # Metrics
     parser.add_argument("--last_n", type=int, default=100, help="Average metrics over this time horizon")
-    parser.add_argument("--metrics", type=object, default=["Episode", "Step", "Avg_Success", "Avg_Reward", "Avg_Cost"], help="List of desired metrics")
+    parser.add_argument("--metrics", type=object, default=["Episode", "Step", "Avg_Success", "Avg_Reward", "Avg_Cost", "Avg_Collision"], help="List of desired metrics")
      
     # Episode length
     parser.add_argument("--n_episode", type=int, default=4000, help="Experiment total timesteps")
