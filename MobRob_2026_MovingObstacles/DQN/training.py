@@ -25,10 +25,11 @@ def train(env, args):
 	finally:
 		env.close()
 
-def generate_environment(editor_build, env_type):
+def generate_environment(editor_build, env_type, random_seed, no_graphics):
 
 	worker_id = int(round(time.time() % 1, 4)*10000)
-	return RoboticNavigation( editor_build=editor_build, worker_id=worker_id, env_type=env_type )
+	return RoboticNavigation( editor_build=editor_build, worker_id=worker_id, env_type=env_type,
+	                          random_seed=random_seed, no_graphics=no_graphics )
 
 
 # Call the main function
@@ -37,11 +38,11 @@ if __name__ == "__main__":
 	# Default parameters
 	args = config.parse_args()
 	# seed = None implies random seed
-	editor_build = True
-	env_type = "training"
+	editor_build = args.editor_build
+	env_type = args.env_type
 
 	print( "Mobile Robotics Lecture on ML-agents and DDQN! \n")
-	env = generate_environment(editor_build, env_type)
+	env = generate_environment(editor_build, env_type, args.seed, args.no_graphics)
 	train(env, args)
 
 

@@ -54,4 +54,9 @@ def parse_args():
     # Cuda 
     parser.add_argument("--cuda", type=str, default="-1", help="-1 to disable cuda")
 
+    # Unity environment
+    parser.add_argument("--editor_build", type=lambda x: bool(strtobool(x)), default=True, help="Train against the Unity Editor (True) or a standalone build (False)")
+    parser.add_argument("--env_type", type=str, default="training", help="Environment type: training, render, gym, testing")
+    parser.add_argument("--no_graphics", type=lambda x: bool(strtobool(x)), default=True, help="Run the standalone build headless (-nographics -batchmode)")
+
     return parser.parse_args()

@@ -76,6 +76,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--log_dir", type=str, default="log", help="Directory of run folders")
     parser.add_argument("--output", type=str, default=None, help="Path to save the figure (default: <log_dir>/training_metrics.png)")
+    parser.add_argument("--last_n", type=int, default=100,
+                        help="Rolling window used during training (for axis labels only)")
     args = parser.parse_args()
 
     output = args.output or os.path.join(args.log_dir, "training_metrics.png")
@@ -86,16 +88,18 @@ def main():
 
     colors = dict(zip(groups.keys(), plt.rcParams["axes.prop_cycle"].by_key()["color"]))
 
-    fig, (ax_reward, ax_collision) = plt.subplots(1, 2, figsize=(14, 5))
-
-    print("Reward:")
-    plot_metric(ax_reward, groups, "Avg_Reward", colors,
-                ylabel="Avg reward (last-100 rolling mean)", title="Reward")
-
-    print("Collisions:")
-    plot_metric(ax_collision, groups, "Avg_Collision", colors,
-                ylabel="Avg collision rate % (last-100 rolling mean)", title="Collisions")
-
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    panels = [
+        ("Avg_Reward",    "Avg reward",       "Reward"),
+        ("Avg_Success",   "Success rate %",   "Success"),
+        ("Avg_Collision", "Collision rate %", "Collisions"),
+        ("Avg_Cost",      "Cost %",           "Cost"),
+    ]
+    for ax, (col, ylab, title) in zip(axes.ravel(), panels):
+        print(f"{title}:")
+        plot_metric(ax, groups, col, colors,
+                    ylabel=f"{ylab} (last-{args.last_n} rolling mean)", title=title)
+        
     fig.tight_layout()
     fig.savefig(output, dpi=150)
     print(f"Saved to {output}")

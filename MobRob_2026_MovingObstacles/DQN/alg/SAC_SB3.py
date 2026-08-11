@@ -1,5 +1,7 @@
 from .log_utils import create_logger, init_wandb
+from .lr_schedules import cosine_episode_learning_rate, set_model_learning_rate
 import numpy as np
+import random
 import time, os
 import warnings; warnings.filterwarnings("ignore")
 
@@ -30,7 +32,7 @@ class EpisodeLoggingCallback(BaseCallback):
         "train/ent_coef_loss",
     ]
 
-    def __init__(self, metrics_logger, wandb_log, last_n, model_dir, n_episode, run_name):
+    def __init__(self, metrics_logger, wandb_log, last_n, model_dir, n_episode, run_name, initial_lr, min_lr):
         super().__init__()
         # Named distinctly from `self.logger`: BaseCallback reserves that name for
         # SB3's own internal Logger (assigned via init_callback() when learn() starts),
@@ -41,6 +43,8 @@ class EpisodeLoggingCallback(BaseCallback):
         self.model_dir = model_dir
         self.n_episode = n_episode
         self.run_name = run_name
+        self.initial_lr = initial_lr
+        self.min_lr = min_lr
 
         self.reward_hist, self.cost_hist, self.step_hist, self.success_hist = [], [], [], []
         self.collision_hist = []
@@ -91,7 +95,15 @@ class EpisodeLoggingCallback(BaseCallback):
                 import wandb
                 wandb.log(record)
 
+            current_lr = cosine_episode_learning_rate(
+                self.initial_lr,
+                self.min_lr,
+                len(self.reward_hist),
+                self.n_episode,
+            )
+
             print(f"(SAC_SB3) Ep: {episode:5}", end=" ")
+            print(f"lr_next: {current_lr:.6f}", end=" ")
             print(f"reward: {self.ep_reward:5.2f} (last_{last_n}: {np.mean(reward_last_n):5.2f})", end=" ")
             print(f"cost_last_{last_n}: {int(np.mean(cost_last_n))}", end=" ")
             print(f"collision_last_{last_n}: {int(np.mean(collision_last_n) * 100)}%", end=" ")
@@ -113,6 +125,8 @@ class EpisodeLoggingCallback(BaseCallback):
 
             self.ep_reward, self.ep_cost, self.ep_step = 0.0, 0, 0
             self.ep_collision = 0
+
+            set_model_learning_rate(self.model, current_lr)
 
             # Returning False stops model.learn() here: most episodes end well before
             # the 300-step timeout (goal/collision), so gating purely on total_timesteps
@@ -164,7 +178,19 @@ class SAC_SB3():
 
     def __init__(self, env, args):
 
+        self.seed = args.seed
+        if self.seed is None:
+            self.seed = np.random.randint(0, 1000)
+
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+
         self.env = env
+        if hasattr(self.env.action_space, "seed"):
+            self.env.action_space.seed(self.seed)
+        if hasattr(self.env.observation_space, "seed"):
+            self.env.observation_space.seed(self.seed)
+
         self.run_name = f"{args.alg}__{args.tag if args.tag != '' else ''}__{args.seed}__{int(time.time())}"
 
         self.model = SAC(
@@ -174,7 +200,7 @@ class SAC_SB3():
             batch_size=args.batch_size,
             learning_rate=args.lr,
             tau=args.tau,
-            gradient_steps=args.n_epochs,
+            gradient_steps=1,
             learning_starts=self.LEARNING_STARTS,
             seed=args.seed,
             verbose=0,
@@ -188,7 +214,7 @@ class SAC_SB3():
 
         callback = EpisodeLoggingCallback(
             metrics_logger, args.wandb_log, last_n=args.last_n, model_dir="models", n_episode=args.n_episode,
-            run_name=self.run_name
+            run_name=self.run_name, initial_lr=args.lr, min_lr=1e-5
         )
 
         # The callback stops training once args.n_episode episodes complete (matching
